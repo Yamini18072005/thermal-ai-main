@@ -6,7 +6,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: MONGODB_URL
+      - key: MONGODB_URI
         sync: false
       - key: DATABASE_NAME
         value: thermal_equity_ai

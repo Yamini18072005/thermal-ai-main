@@ -55,7 +55,12 @@ async def lifespan(app: FastAPI):
     try:
         await MongoDBManager.connect_to_database()
     except Exception as exc:
-        print(f"MongoDB unavailable; authentication requests will return 503: {exc}")
+        if is_production():
+            raise RuntimeError(
+                "MongoDB startup connection failed; verify MONGODB_URI, "
+                "DATABASE_NAME, and Atlas Network Access."
+            ) from exc
+        print(f"MongoDB unavailable; authentication requests will return 503: {type(exc).__name__}")
 
     # Initialize the local relational store only for local development.
     try:
