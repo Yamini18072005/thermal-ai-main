@@ -3,17 +3,20 @@ services:
   - type: web
     name: thermal-equity-ai-backend
     runtime: python
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: MONGODB_URI
         sync: false
       - key: DATABASE_NAME
-        value: thermal_equity_ai
+        value: thermal_equity
       - key: SECRET_KEY
         generateValue: true
       - key: REQUIRE_MONGODB
         value: "true"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
       - key: FRONTEND_ORIGINS
         sync: false
       - key: PYTHON_VERSION

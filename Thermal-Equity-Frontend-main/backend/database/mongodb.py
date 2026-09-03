@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -220,9 +221,13 @@ class MongoDBManager:
     async def connect_to_database(cls):
         global _client, _db, _is_connected
         
-        if not MONGODB_URI or "<db_username>" in MONGODB_URI or "<username>" in MONGODB_URI:
+        if not MONGODB_URI or "<" in MONGODB_URI or ">" in MONGODB_URI or MONGODB_URI.startswith("PASTE_"):
             _is_connected = False
             raise RuntimeError("MONGODB_URI is required")
+        parsed_uri = urlparse(MONGODB_URI)
+        if parsed_uri.scheme != "mongodb+srv" or not parsed_uri.hostname or not parsed_uri.username or not parsed_uri.password:
+            _is_connected = False
+            raise RuntimeError("MONGODB_URI must be a complete mongodb+srv URI with encoded credentials")
 
         try:
             from motor.motor_asyncio import AsyncIOMotorClient
