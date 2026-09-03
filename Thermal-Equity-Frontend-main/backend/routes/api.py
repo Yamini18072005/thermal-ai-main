@@ -28,6 +28,7 @@ try:
         predict_thermal_risk,
     )
     from backend.services.weather_service import get_weather, get_batch_weather
+    from backend.services.auth import get_current_user
     from backend.schemas.schemas import (
         AIInsightItem,
         AlertCreate,
@@ -55,6 +56,7 @@ except ImportError:
         predict_thermal_risk,
     )
     from services.weather_service import get_weather, get_batch_weather
+    from services.auth import get_current_user
     from schemas.schemas import (
         AIInsightItem,
         AlertCreate,
@@ -772,6 +774,7 @@ def get_recommendations():
 )
 async def dashboard_summary(
     database: Session = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     # 1. Try fetching from MongoDB Atlas / in-memory telemetry store first
     mongo_telemetry = await get_latest_telemetry()

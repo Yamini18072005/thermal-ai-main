@@ -21,8 +21,9 @@ load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 load_dotenv(dotenv_path=BACKEND_DIR / ".env")
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL") or os.getenv("MONGODB_URI") or ""
+MONGODB_URL = os.getenv("MONGODB_URI") or os.getenv("MONGODB_URL") or ""
 DATABASE_NAME = os.getenv("DATABASE_NAME", "thermal_equity_ai")
+REQUIRE_MONGODB = os.getenv("REQUIRE_MONGODB", "true").strip().lower() == "true" or bool(os.getenv("PORT"))
 
 # Resilient in-memory database store for continuous operation
 _in_memory_db: dict[str, list[dict[str, Any]]] = {
@@ -213,19 +214,15 @@ _is_connected = False
 
 
 class MongoDBManager:
-    """Manages connection and CRUD operations for MongoDB Atlas and resilient fallback."""
+    """Manages the MongoDB connection and dashboard collections."""
 
     @classmethod
     async def connect_to_database(cls):
         global _client, _db, _is_connected
         
-        # Always seed resilient store first so it's ready immediately
-        cls.seed_in_memory_data()
-
         if not MONGODB_URL or "<db_username>" in MONGODB_URL or "<username>" in MONGODB_URL:
             _is_connected = False
-            print("ℹ️ [MongoDB Atlas] Running with resilient local telemetry store.")
-            return
+            raise RuntimeError("MONGODB_URI is required")
 
         try:
             from motor.motor_asyncio import AsyncIOMotorClient
@@ -249,9 +246,9 @@ class MongoDBManager:
             # Auto-seed initial data
             await cls.seed_initial_data()
 
-        except Exception as e:
+        except Exception as exc:
             _is_connected = False
-            print(f"⚠️ [MongoDB Atlas Info] Local resilient storage active: {str(e)}")
+            raise RuntimeError("MongoDB connection failed") from exc
 
     @classmethod
     async def close_database_connection(cls):
@@ -285,20 +282,7 @@ class MongoDBManager:
                 await _db.locations.insert_many(CHENNAI_LOCATIONS_SEED)
                 print(f"✓ Seeded {len(CHENNAI_LOCATIONS_SEED)} Chennai ward stations in MongoDB.")
 
-            # 2. Seed Default Admin User
-            admin_count = await _db.users.count_documents({"email": "admin@thermalequity.ai"})
-            if admin_count == 0:
-                demo_admin = {
-                    "name": "GCC Climate Officer",
-                    "email": "admin@thermalequity.ai",
-                    "hashed_password": get_password_hash("Password@123"),
-                    "role": "admin",
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-                await _db.users.insert_one(demo_admin)
-                print("✓ Seeded default evaluator admin user (admin@thermalequity.ai) in MongoDB.")
-
-            # 3. Seed Initial Telemetry Records
+            # Seed telemetry without creating authentication users.
             tel_count = await _db.telemetry.count_documents({})
             if tel_count == 0:
                 now_iso = datetime.now(timezone.utc).isoformat()
@@ -325,23 +309,10 @@ class MongoDBManager:
 
     @classmethod
     def seed_in_memory_data(cls):
-        """Populates in-memory storage for resilient local execution."""
-        from backend.services.auth import get_password_hash
+        """Populates non-authentication data for compatibility with local callers."""
 
         if not _in_memory_db["locations"]:
             _in_memory_db["locations"] = [dict(item) for item in CHENNAI_LOCATIONS_SEED]
-
-        if not _in_memory_db["users"]:
-            _in_memory_db["users"] = [
-                {
-                    "id": "usr-admin-1",
-                    "name": "GCC Climate Officer",
-                    "email": "admin@thermalequity.ai",
-                    "hashed_password": get_password_hash("Password@123"),
-                    "role": "admin",
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-            ]
 
         now_iso = datetime.now(timezone.utc).isoformat()
         if not _in_memory_db["telemetry"]:
@@ -388,10 +359,6 @@ class MongoDBManager:
             ]
 
 
-# Automatically initialize default seed data immediately on module load
-MongoDBManager.seed_in_memory_data()
-
-
 # Helper CRUD functions
 async def get_all_locations() -> list[dict[str, Any]]:
     if _is_connected and _db is not None:
@@ -400,8 +367,9 @@ async def get_all_locations() -> list[dict[str, Any]]:
             locs = await cursor.to_list(length=100)
             if locs:
                 return locs
-        except Exception:
-            pass
+        except Exception as exc:
+            if REQUIRE_MONGODB:
+                raise RuntimeError("MongoDB Atlas query failed") from exc
     return _in_memory_db["locations"]
 
 
@@ -412,8 +380,9 @@ async def get_latest_telemetry() -> list[dict[str, Any]]:
             tels = await cursor.to_list(length=20)
             if tels:
                 return tels
-        except Exception:
-            pass
+        except Exception as exc:
+            if REQUIRE_MONGODB:
+                raise RuntimeError("MongoDB Atlas query failed") from exc
     return _in_memory_db["telemetry"]
 
 
@@ -424,8 +393,9 @@ async def get_active_alerts() -> list[dict[str, Any]]:
             alts = await cursor.to_list(length=50)
             if alts:
                 return alts
-        except Exception:
-            pass
+        except Exception as exc:
+            if REQUIRE_MONGODB:
+                raise RuntimeError("MongoDB Atlas query failed") from exc
     return [a for a in _in_memory_db["alerts"] if a.get("status") == "active"]
 
 
@@ -436,39 +406,32 @@ async def save_telemetry_batch(telemetry_list: list[dict[str, Any]]) -> int:
         try:
             result = await _db.telemetry.insert_many(telemetry_list)
             return len(result.inserted_ids)
-        except Exception:
-            pass
+        except Exception as exc:
+            if REQUIRE_MONGODB:
+                raise RuntimeError("MongoDB Atlas write failed") from exc
     _in_memory_db["telemetry"].extend(telemetry_list)
     return len(telemetry_list)
 
 
 async def find_user_by_email(email: str) -> dict[str, Any] | None:
     clean_email = email.strip().lower()
-    if _is_connected and _db is not None:
-        try:
-            user = await _db.users.find_one({"email": clean_email})
-            if user:
-                return user
-        except Exception:
-            pass
-    for u in _in_memory_db["users"]:
-        if u.get("email", "").lower() == clean_email:
-            return u
-    return None
+    if not _is_connected or _db is None:
+        raise RuntimeError("MongoDB is not connected")
+    try:
+        return await _db.users.find_one({"email": clean_email})
+    except Exception as exc:
+        raise RuntimeError("MongoDB user lookup failed") from exc
 
 
 async def create_user(user_doc: dict[str, Any]) -> dict[str, Any]:
+    if not _is_connected or _db is None:
+        raise RuntimeError("MongoDB is not connected")
     user_doc["email"] = user_doc["email"].strip().lower()
     if "created_at" not in user_doc:
         user_doc["created_at"] = datetime.now(timezone.utc).isoformat()
-    if _is_connected and _db is not None:
-        try:
-            result = await _db.users.insert_one(user_doc)
-            user_doc["_id"] = str(result.inserted_id)
-            return user_doc
-        except Exception:
-            pass
-    if "_id" not in user_doc and "id" not in user_doc:
-        user_doc["id"] = f"usr_{len(_in_memory_db['users']) + 1}"
-    _in_memory_db["users"].append(user_doc)
-    return user_doc
+    try:
+        result = await _db.users.insert_one(user_doc)
+        user_doc["_id"] = str(result.inserted_id)
+        return user_doc
+    except Exception as exc:
+        raise RuntimeError("MongoDB user creation failed") from exc

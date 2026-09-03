@@ -12,5 +12,9 @@ services:
         value: thermal_equity_ai
       - key: SECRET_KEY
         generateValue: true
+      - key: REQUIRE_MONGODB
+        value: "true"
+      - key: FRONTEND_ORIGINS
+        sync: false
       - key: PYTHON_VERSION
         value: 3.11.9

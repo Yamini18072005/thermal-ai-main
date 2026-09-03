@@ -66,7 +66,10 @@ async def handle_register(payload: RegisterRequest) -> dict[str, Any]:
     clean_email = payload.email.strip().lower()
 
     # Check if user already exists in MongoDB Atlas / database
-    existing_user = await find_user_by_email(clean_email)
+    try:
+        existing_user = await find_user_by_email(clean_email)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -74,18 +77,21 @@ async def handle_register(payload: RegisterRequest) -> dict[str, Any]:
         )
 
     # Hash password securely with bcrypt
-    hashed_password = get_password_hash(payload.password)
+    password_hash = get_password_hash(payload.password)
 
     # Create new user record in MongoDB Atlas
     user_doc = {
         "name": payload.name.strip(),
         "email": clean_email,
-        "hashed_password": hashed_password,
+        "password_hash": password_hash,
         "role": "analyst",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    created = await create_user(user_doc)
+    try:
+        created = await create_user(user_doc)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
 
     # Generate JWT Token
     token_payload = {
@@ -94,7 +100,10 @@ async def handle_register(payload: RegisterRequest) -> dict[str, Any]:
         "email": clean_email,
         "role": "analyst",
     }
-    access_token = create_access_token(token_payload)
+    try:
+        access_token = create_access_token(token_payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
 
     return {
         "access_token": access_token,
@@ -115,7 +124,10 @@ async def handle_login(payload: LoginRequest) -> dict[str, Any]:
     clean_email = payload.email.strip().lower()
 
     # Find user in MongoDB Atlas
-    user = await find_user_by_email(clean_email)
+    try:
+        user = await find_user_by_email(clean_email)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -124,8 +136,8 @@ async def handle_login(payload: LoginRequest) -> dict[str, Any]:
         )
 
     # Verify password hash
-    hashed_password = user.get("hashed_password", "")
-    if not verify_password(payload.password, hashed_password):
+    password_hash = user.get("password_hash", "")
+    if not verify_password(payload.password, password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
@@ -139,7 +151,10 @@ async def handle_login(payload: LoginRequest) -> dict[str, Any]:
         "email": clean_email,
         "role": user.get("role", "analyst"),
     }
-    access_token = create_access_token(token_payload)
+    try:
+        access_token = create_access_token(token_payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Authentication service unavailable") from exc
 
     return {
         "access_token": access_token,

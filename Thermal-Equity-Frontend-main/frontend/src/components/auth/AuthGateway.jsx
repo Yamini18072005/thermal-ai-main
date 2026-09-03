@@ -6,45 +6,13 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const cleanApiUrl = (apiUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
-
-  // Quick Demo Login for Evaluators & Mentors
-  const handleQuickDemo = async () => {
-    const demoEmail = 'admin@thermalequity.ai';
-    const demoPassword = 'Password@123';
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setErrorMessage('');
-    setSuccessMessage('');
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${cleanApiUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: demoEmail, password: demoPassword }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.access_token) {
-        setSuccessMessage('✓ Evaluator Demo Access Granted (JWT Verified). Accessing Command Center...');
-        setTimeout(() => {
-          onLoginSuccess(data.access_token, data.user);
-        }, 500);
-      } else {
-        setErrorMessage(data.detail || 'Demo login failed. Please verify the backend is running.');
-      }
-    } catch (err) {
-      setErrorMessage(`Unable to connect to server at ${cleanApiUrl}. Please ensure the FastAPI backend is running.`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const cleanApiUrl = (apiUrl || '').replace(/\/+$/, '');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,6 +37,11 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
         setErrorMessage('Passwords do not match. Please re-enter.');
         return;
       }
+    }
+
+    if (!cleanApiUrl) {
+      setErrorMessage('Unable to connect to server. Please configure VITE_API_URL.');
+      return;
     }
 
     setLoading(true);
@@ -110,15 +83,17 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
         } else if (response.status === 400) {
           setErrorMessage(data.detail || 'An account with this email already exists.');
         } else if (response.status === 404) {
-          setErrorMessage(`Authentication endpoint not found on server (${endpoint}). Verify backend routing.`);
+          setErrorMessage('Authentication service is unavailable. Please try again later.');
+        } else if (response.status === 503) {
+          setErrorMessage('Authentication database is unavailable. Please try again later.');
         } else if (response.status === 422) {
           setErrorMessage('Invalid input format. Password must be at least 6 characters and email must be valid.');
         } else {
           setErrorMessage(data.detail || 'Authentication failed. Please verify your details.');
         }
       }
-    } catch (err) {
-      setErrorMessage(`Unable to connect to server. Please verify that the FastAPI backend is running at ${cleanApiUrl}`);
+    } catch {
+      setErrorMessage('Unable to connect to server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -375,8 +350,9 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#CBD5E1', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
               PASSWORD {authMode === 'register' && <span style={{ color: '#64748B', fontWeight: 400 }}>(min 6 chars)</span>}
             </label>
-            <input
-              type="password"
+            <div style={{ position: 'relative' }}>
+              <input
+              type={showPassword ? 'text' : 'password'}
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -396,7 +372,16 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
               }}
               onFocus={(e) => e.target.style.borderColor = '#00F2FE'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)'}
-            />
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94A3B8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+              >
+                {showPassword ? 'HIDE' : 'SHOW'}
+              </button>
+            </div>
           </div>
 
           {authMode === 'register' && (
@@ -404,8 +389,9 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#CBD5E1', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
                 CONFIRM PASSWORD
               </label>
-              <input
-                type="password"
+              <div style={{ position: 'relative' }}>
+                <input
+                type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -425,7 +411,16 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#00F2FE'}
                 onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)'}
-              />
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                  style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#94A3B8', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+                >
+                  {showConfirmPassword ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -461,44 +456,6 @@ export default function AuthGateway({ onLoginSuccess, apiUrl }) {
           </button>
         </form>
 
-        {/* Quick Demo Access Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', margin: '0.2rem 0' }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
-          <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 800 }}>MENTOR / EVALUATOR QUICK ACCESS</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
-        </div>
-
-        {/* 1-Click Quick Demo Login Button */}
-        <button
-          type="button"
-          onClick={handleQuickDemo}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 85, 0, 0.4)',
-            background: 'linear-gradient(90deg, rgba(255, 85, 0, 0.15) 0%, rgba(239, 68, 68, 0.15) 100%)',
-            color: '#FFF',
-            fontFamily: 'var(--font-title, sans-serif)',
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            boxShadow: '0 0 20px rgba(255, 85, 0, 0.2)',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <span>⚡</span> 1-CLICK QUICK EVALUATOR DEMO LOGIN
-        </button>
-
-        {/* Credentials reminder */}
-        <div style={{ textAlign: 'center', fontSize: '0.74rem', color: '#64748B', lineHeight: 1.4 }}>
-          Demo Officer: <strong style={{ color: '#CBD5E1' }}>admin@thermalequity.ai</strong> | Pass: <strong style={{ color: '#CBD5E1' }}>Password@123</strong>
-        </div>
       </div>
     </div>
   );

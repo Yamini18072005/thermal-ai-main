@@ -1,9 +1,0 @@
-dataset,category,source,official_url,date_accessed,data_year,format,CRS,resolution,coverage,description,license,processing_status,notes
-CMA expansion map,boundary,Source URL not recorded in workspace,,2026-08-19,,PDF,,,CMA context map,Reference map for expanded Chennai Metropolitan Area information,Not recorded,available,Not used as the primary GCC study area
-GCC Region Boundary,boundary,Greater Chennai Corporation official GIS,,2026-08-19,,vector,,,GCC regions North Central South,Official region boundary currently displayed in QGIS but not exported to this workspace,To be confirmed,blocked,Export from QGIS to gis/boundaries/Region_Boundary.gpkg and validate before use
-Chennai GCC boundary,boundary,Greater Chennai Corporation official GIS,,2026-08-19,,vector,,,GCC study area,Required primary study-area boundary,To be confirmed,not obtained,Do not substitute expanded CMA
-Ward boundary,boundary,Greater Chennai Corporation official GIS,,2026-08-19,,vector,,,GCC wards,Required zonal analysis boundary,To be confirmed,not obtained,Official service or export required
-Zone boundary,boundary,Greater Chennai Corporation official GIS,,2026-08-19,,vector,,,GCC zones,Optional aggregation boundary,To be confirmed,not obtained,Official service or export required
-Landsat thermal imagery,remote_sensing,USGS EarthExplorer or NASA/USGS,,2026-08-19,,raster,,,Chennai GCC,Required for documented LST period,USGS terms,not obtained,Select a cloud-filtered Collection 2 Level-2 scene before processing
-Sentinel-2 optical imagery,remote_sensing,Copernicus Data Space Ecosystem,,2026-08-19,,raster,,,Chennai GCC,Optional optical source for NDVI/NDBI,See provider terms,not obtained,Use only if selected period and cloud filtering are documented
-Population and vulnerability data,social,Official census or government source,,2026-08-19,,vector/table,,,Chennai GCC,Required demographic indicators,To be confirmed,not obtained,Do not manufacture missing variables

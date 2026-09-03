@@ -3,24 +3,7 @@ import './App.css';
 import AuthGateway from './components/auth/AuthGateway';
 
 // --- PRODUCTION CLOUD & BACKEND CONFIGURATION ---
-const DEFAULT_ENV_API = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
-
-function getInitialApiUrl() {
-  if (typeof window === 'undefined') {
-    return DEFAULT_ENV_API || 'http://127.0.0.1:8000';
-  }
-  const stored = localStorage.getItem('thermal_equity_api_url');
-  if (stored && stored.trim() !== '') {
-    return stored.trim().replace(/\/+$/, '');
-  }
-  if (DEFAULT_ENV_API) {
-    return DEFAULT_ENV_API;
-  }
-  // Default to localhost if on local machine, or current origin
-  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://127.0.0.1:8000'
-    : 'https://thermal-equity-ai.onrender.com';
-}
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 // --- CHENNAI SPATIAL COORDINATES & MONITORED WARD PROFILES ---
 const CHENNAI_STATIONS = [
@@ -293,10 +276,6 @@ export default function App() {
 
   const isAuthenticated = Boolean(authToken && currentUser);
 
-  // Backend API URL State
-  const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
-  const API_URL = useMemo(() => (apiUrl || getInitialApiUrl()).replace(/\/+$/, ''), [apiUrl]);
-
   // Navigation & Core States
   const [activeNav, setActiveNav] = useState('dashboard');
   const [liveLocations, setLiveLocations] = useState(() =>
@@ -390,6 +369,32 @@ export default function App() {
     localStorage.removeItem('thermal_auth_user');
     setShowSettings(false);
   };
+
+  useEffect(() => {
+    if (!isAuthenticated || !API_URL) return undefined;
+
+    const loadDashboardSummary = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/dashboard/summary`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+        if (!response.ok) return;
+        const summary = await response.json();
+        if (typeof summary.recent_measurements === 'number') {
+          setTotalReadingsCount(summary.recent_measurements);
+        }
+      } catch {
+        // Live UI retains its current values when the summary request is unavailable.
+      }
+    };
+
+    loadDashboardSummary();
+    return undefined;
+  }, [authToken, isAuthenticated]);
 
   // Live seconds timer
   useEffect(() => {
@@ -1883,7 +1888,7 @@ export default function App() {
             <div style={{ fontFamily: 'var(--font-title)', fontWeight: 800, color: '#FFF', fontSize: '1rem', marginTop: '0.2rem' }}>
               {currentUser?.name || 'Climate Analyst'}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>{currentUser?.email || 'admin@thermalequity.ai'}</div>
+            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>{currentUser?.email || 'Authenticated user'}</div>
             <button
               type="button"
               className="btn-secondary"

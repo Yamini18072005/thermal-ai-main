@@ -34,19 +34,34 @@ from backend.routes.auth_routes import router as auth_router
 from backend.routes.api import router as api_router
 
 
+def is_production() -> bool:
+    return os.getenv("REQUIRE_MONGODB", "").strip().lower() == "true" or bool(os.getenv("PORT"))
+
+
+def get_cors_origins() -> list[str]:
+    configured = os.getenv("FRONTEND_ORIGINS", "")
+    origins = [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
+    origins.extend([
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ])
+    return list(dict.fromkeys(origins))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Connect to MongoDB Atlas (or in-memory resilient fallback)
     try:
         await MongoDBManager.connect_to_database()
-    except Exception as e:
-        print(f"Warning during MongoDB initialization: {e}")
+    except Exception as exc:
+        print(f"MongoDB unavailable; authentication requests will return 503: {exc}")
 
-    # 2. Initialize relational database fallback if configured
+    # Initialize the local relational store only for local development.
     try:
         init_db()
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"Local telemetry store initialization failed: {exc}")
 
     yield
 
@@ -64,11 +79,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Bulletproof CORS: allow all origins, headers, and methods so frontend requests succeed seamlessly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=get_cors_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
