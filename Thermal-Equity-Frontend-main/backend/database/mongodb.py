@@ -21,7 +21,7 @@ load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 load_dotenv(dotenv_path=BACKEND_DIR / ".env")
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URI") or os.getenv("MONGODB_URL") or ""
+MONGODB_URI = os.getenv("MONGODB_URI", "").strip()
 DATABASE_NAME = os.getenv("DATABASE_NAME", "thermal_equity")
 REQUIRE_MONGODB = os.getenv("REQUIRE_MONGODB", "true").strip().lower() == "true" or bool(os.getenv("PORT"))
 
@@ -220,23 +220,26 @@ class MongoDBManager:
     async def connect_to_database(cls):
         global _client, _db, _is_connected
         
-        if not MONGODB_URL or "<db_username>" in MONGODB_URL or "<username>" in MONGODB_URL:
+        if not MONGODB_URI or "<db_username>" in MONGODB_URI or "<username>" in MONGODB_URI:
             _is_connected = False
             raise RuntimeError("MONGODB_URI is required")
 
         try:
             from motor.motor_asyncio import AsyncIOMotorClient
 
+            print("[MongoDB] MONGODB_URI found in environment (secret hidden)")
             _client = AsyncIOMotorClient(
-                MONGODB_URL,
+                MONGODB_URI,
                 serverSelectionTimeoutMS=4000,
             )
             _db = _client[DATABASE_NAME]
+            print(f"[MongoDB] Client created for database: {DATABASE_NAME}")
 
             # Ping database to verify connection
             await _client.admin.command("ping")
+            print("[MongoDB] Ping succeeded")
             _is_connected = True
-            print(f"✓ [MongoDB Atlas Connected] Database: {DATABASE_NAME}")
+            print(f"[MongoDB] Database connection successful: {DATABASE_NAME}")
 
             # Ensure unique index on email
             await _db.users.create_index("email", unique=True)
@@ -248,7 +251,11 @@ class MongoDBManager:
 
         except Exception as exc:
             _is_connected = False
-            raise RuntimeError("MongoDB connection failed") from exc
+            if _client:
+                _client.close()
+            _client = None
+            _db = None
+            raise RuntimeError(f"MongoDB connection failed: {type(exc).__name__}") from exc
 
     @classmethod
     async def close_database_connection(cls):

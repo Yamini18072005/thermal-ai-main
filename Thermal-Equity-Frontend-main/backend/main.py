@@ -131,8 +131,8 @@ def home():
     }
 
 
-@app.get("/health", tags=["Health"])
-@app.get("/api/health", tags=["Health"])
+@app.get("/health", tags=["Health"], operation_id="health")
+@app.get("/api/health", tags=["Health"], operation_id="api_health")
 def health():
     is_connected = MongoDBManager.is_connected()
     return {
