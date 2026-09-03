@@ -42,6 +42,7 @@ def get_cors_origins() -> list[str]:
     configured = os.getenv("FRONTEND_ORIGINS", "")
     origins = [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
     origins.extend([
+        "https://thermal-ai-main.vercel.app",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
