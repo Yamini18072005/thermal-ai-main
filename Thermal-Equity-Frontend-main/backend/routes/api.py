@@ -138,7 +138,7 @@ def health(database: Session = Depends(get_db)) -> dict[str, Any]:
         "status": "ok",
         "service": "Thermal Equity AI API",
         "database": "MongoDB Atlas" if is_connected else "Local Resilient Telemetry Store",
-        "database_name": os.getenv("DATABASE_NAME", "thermal_equity_ai"),
+        "database_name": os.getenv("DATABASE_NAME", "thermal_equity"),
         "mongodb_connected": is_connected,
         "monitored_locations": location_count,
         "region": "Greater Chennai Corporation (8 Monitored Wards)",

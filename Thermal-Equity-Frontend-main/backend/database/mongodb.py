@@ -22,7 +22,7 @@ load_dotenv(dotenv_path=BACKEND_DIR / ".env")
 load_dotenv()
 
 MONGODB_URL = os.getenv("MONGODB_URI") or os.getenv("MONGODB_URL") or ""
-DATABASE_NAME = os.getenv("DATABASE_NAME", "thermal_equity_ai")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "thermal_equity")
 REQUIRE_MONGODB = os.getenv("REQUIRE_MONGODB", "true").strip().lower() == "true" or bool(os.getenv("PORT"))
 
 # Resilient in-memory database store for continuous operation

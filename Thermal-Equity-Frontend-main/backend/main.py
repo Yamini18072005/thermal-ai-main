@@ -114,7 +114,7 @@ def home():
         "status": "online",
         "mongodb_connected": MongoDBManager.is_connected(),
         "database": "MongoDB Atlas" if MongoDBManager.is_connected() else "Local Resilient Telemetry Store",
-        "database_name": os.getenv("DATABASE_NAME", "thermal_equity_ai"),
+        "database_name": os.getenv("DATABASE_NAME", "thermal_equity"),
         "docs": "/docs",
         "endpoints": {
             "auth_register": "/api/auth/register",
@@ -139,7 +139,7 @@ def health():
         "status": "ok",
         "service": "Thermal Equity AI API",
         "database": "MongoDB Atlas" if is_connected else "Local Resilient Telemetry Store",
-        "database_name": os.getenv("DATABASE_NAME", "thermal_equity_ai"),
+        "database_name": os.getenv("DATABASE_NAME", "thermal_equity"),
         "mongodb_connected": is_connected,
         "region": "Greater Chennai Corporation (8 Monitored Wards)",
     }
