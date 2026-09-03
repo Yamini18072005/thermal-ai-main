@@ -3,7 +3,10 @@ import './App.css';
 import AuthGateway from './components/auth/AuthGateway';
 
 // --- PRODUCTION CLOUD & BACKEND CONFIGURATION ---
-const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://thermal-ai-main-3.onrender.com' : '')
+).replace(/\/+$/, '');
 
 // --- CHENNAI SPATIAL COORDINATES & MONITORED WARD PROFILES ---
 const CHENNAI_STATIONS = [
